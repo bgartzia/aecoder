@@ -1,7 +1,6 @@
 import albumentations as Ations
 import os
 import cv2
-from cv2 import (imread, resize, IMREAD_UNCHANGED, INTER_LINEAR, imwrite)
 
 
 class Augmentor:
@@ -54,7 +53,7 @@ class Augmentor:
 
                 if not os.path.exists(out_dir):
                     os.makedirs(out_dir)
-                imwrite(os.path.join(out_dir, f'OG_{filename}.{format}'), rs_og)
+                cv2.imwrite(os.path.join(out_dir, f'OG_{filename}.{format}'), rs_og)
 
                 if split == 'train':
                     for i_aug in range(times):
@@ -62,6 +61,6 @@ class Augmentor:
                         augmented = pipeline_out['image']
                         out_filename = os.path.join(out_dir,
                                             f'augm_{i_aug}_{filename}.{format}')
-                        imwrite(out_filename, augmented)
+                        cv2.imwrite(out_filename, augmented)
 
 
