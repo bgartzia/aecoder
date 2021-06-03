@@ -122,14 +122,14 @@ class AutoEncoder(Model):
                        decoder.
         """
 
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
-            enc_path = os.path.join(directory, f'{name_root}_encoder.h5')
-            dec_path = os.path.join(directory, f'{name_root}_decoder.h5')
+        enc_path = os.path.join(directory, f'{name_root}_encoder.h5')
+        dec_path = os.path.join(directory, f'{name_root}_decoder.h5')
 
-            self.encoder.save(enc_path)
-            self.decoder.save(dec_path)
+        self.encoder.save(enc_path)
+        self.decoder.save(dec_path)
 
 
     def load(self, directory, name_root):
@@ -139,10 +139,10 @@ class AutoEncoder(Model):
                        decoder.
         """
 
-            enc_path = os.path.join(directory, f'{name_root}_encoder.h5')
-            dec_path = os.path.join(directory, f'{name_root}_decoder.h5')
+        enc_path = os.path.join(directory, f'{name_root}_encoder.h5')
+        dec_path = os.path.join(directory, f'{name_root}_decoder.h5')
 
-            self.encoder.load_weights(enc_path)
-            self.decoder.load_weights(dec_path)
+        self.encoder.load_weights(enc_path)
+        self.decoder.load_weights(dec_path)
 
 
