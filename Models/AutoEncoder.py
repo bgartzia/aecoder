@@ -1,3 +1,4 @@
+import os
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import (Input, Conv2D, BatchNormalization, ReLU,
                                      MaxPool2D, Dense, Flatten,
@@ -113,10 +114,35 @@ class AutoEncoder(Model):
         # ROIs are returned but also the intensity of the detection, or the 
         # "Confidence", or the temperature of the _HOT-SPOTS_
         return tf.multiply(ae_diff, mask)
-        
-        
-            
+
+    def save(self, directory, name_root):
+        """ Saves encoder and decoder models in the specified directory.
+            directory: place where the models are stored.
+            name_root: name for the files. They will be followed by encoder or
+                       decoder.
+        """
+
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+            enc_path = os.path.join(directory, f'{name_root}_encoder.h5')
+            dec_path = os.path.join(directory, f'{name_root}_decoder.h5')
+
+            self.encoder.save(enc_path)
+            self.decoder.save(dec_path)
 
 
+    def load(self, directory, name_root):
+        """ Loads encoder and decoder models from the specified directory.
+            directory: place where the models are stored.
+            name_root: name for the files. They will be followed by encoder or
+                       decoder.
+        """
+
+            enc_path = os.path.join(directory, f'{name_root}_encoder.h5')
+            dec_path = os.path.join(directory, f'{name_root}_decoder.h5')
+
+            self.encoder.load_weights(enc_path)
+            self.decoder.load_weights(dec_path)
 
 
