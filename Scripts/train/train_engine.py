@@ -38,6 +38,7 @@ class TrainEngine(object):
 
             self.hooks['on_end_epoch'](state)
             state['epoch'] += 1
+            state['total_batches'] = 1
 
             # Early stopping
             if state['early_stopping_triggered']:

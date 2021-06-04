@@ -101,7 +101,7 @@ def train(config):
         if cur_loss < state['best_val_loss']:
             print("Saving new best model with loss: ", cur_loss)
             state['best_val_loss'] = cur_loss
-            model.save(config['model.save_path'])
+            model.save(config['model.save_path'], config['model.base_name'])
         val_losses.append(cur_loss)
 
         # Early stopping
@@ -112,10 +112,10 @@ def train(config):
     train_engine.hooks['on_end_epoch'] = on_end_epoch
 
     def on_batch(state):
-        print(f"Batch {state['total_batches']}.\tLoss: {train_loss.result()}")
         batch = state['sample']
         loss_func = state['loss_func']
         train_step(loss_func, batch)
+        print(f"Epoch {state['epoch']}\tBatch {state['total_batches']}.\tLoss: {train_loss.result()}")
     train_engine.hooks['on_batch'] = on_batch
 
     def on_batch_end(state):
