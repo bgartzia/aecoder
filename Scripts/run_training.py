@@ -15,9 +15,10 @@ def preprocess_config(c):
         if param in int_params:
             conf_dict[param] = int(c[param])
         elif param in float_params:
-            conf_dict[param] = [int(val) for val in c[param].split(',')]
-        elif param in int_list_params:
             conf_dict[param] = float(c[param])
+        elif param in int_list_params:
+            conf_dict[param] = [int(val) for val in c[param].split(',')]
+
         else:
             conf_dict[param] = c[param]
     return conf_dict

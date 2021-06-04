@@ -3,15 +3,13 @@ Logic for model creation, training launching and actions needed to be
 accomplished during training (metrics monitor, model saving etc.)
 """
 
-import os
 import time
 import numpy as np
 import tensorflow as tf
-if tf.test.is_built_with_cuda() and tf.test.is_gpu_available():
-    tf.config.gpu.set_per_process_memory_growth(True)
+
 from Models import AutoEncoder
 from Data import load_data
-import train_engine
+from .train_engine import TrainEngine
 from random import seed as base_seed
 
 
@@ -25,9 +23,20 @@ def train(config):
     val_pipe = ret['val']
 
     # Determine device
-    if config['data.cuda']:
-        cuda_num = config['data.gpu']
-        device_name = f'GPU:{cuda_num}'
+    if config['exec.cuda']:
+        if tf.test.is_gpu_available():
+            cuda_num = config['exec.gpu']
+            device_name = f'GPU:{cuda_num}'
+            #physical_devices = tf.config.experimental.list_physical_devices('GPU')
+            #assert (len(physical_devices) > 0),\
+            #        "Not enough GPU hardware devices available"
+            #tf.config.experimental.set_memory_growth(physical_devices[int(cuda_num)],
+            #                                         True)
+
+        else:
+            raise tf.errors.NotFoundError(f"Device GPU:{config['exec.gpu']} wasn\'t found.")
+
+
     else:
         device_name = 'CPU:0'
 
@@ -51,7 +60,7 @@ def train(config):
             zip(gradients, model.trainable_variables))
 
         # Log loss and accuracy for step
-        train_loss(loss)
+        train_loss(loss_out)
 
     @tf.function
     def val_step(loss_func, batch):
@@ -103,7 +112,7 @@ def train(config):
     train_engine.hooks['on_end_epoch'] = on_end_epoch
 
     def on_batch(state):
-        print(f"Batch {state['total_batches']}")
+        print(f"Batch {state['total_batches']}.\tLoss: {train_loss.result()}")
         batch = state['sample']
         loss_func = state['loss_func']
         train_step(loss_func, batch)
@@ -124,8 +133,7 @@ def train(config):
             loss_func=tf.nn.l2_loss,
             train_pipeline=train_pipe,
             val_pipeline=val_pipe,
-            epochs=config['train.epochs'],
-            n_episodes=config['data.episodes'])
+            epochs=config['train.epochs'])
     time_end = time.time()
 
     elapsed = time_end - time_start

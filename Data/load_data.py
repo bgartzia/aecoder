@@ -15,7 +15,7 @@ def read_numpy_images_from_dir(dir_path, img_format):
     """
 
     # Get filenames
-    dir_files = glob.glob(os.path.join(dir_path, f'*.{fmt}'))
+    dir_files = glob.glob(os.path.join(dir_path, f'*.{img_format}'))
     # Reorder randomly
     shuffle(dir_files)
     # Read files as np.array
@@ -25,7 +25,7 @@ def read_numpy_images_from_dir(dir_path, img_format):
     if len(np_imgs.shape) < 4:
         np_imgs = np.expand_dims(np_imgs, -1)
 
-    return np_imgs
+    return np_imgs.astype(dtype=np.float32)
 
 
 def setup_tf_data_pipeline(data, shuff_buff_size, batch_size):
@@ -40,10 +40,10 @@ def setup_tf_data_pipeline(data, shuff_buff_size, batch_size):
     """
 
     data_ds = tf.data.Dataset.from_tensor_slices(data)
-    
+
     return (data_ds.shuffle(buffer_size=shuff_buff_size)
                    .batch(batch_size, drop_remainder=True)
-                   .prefecth(tf.data.experimental.AUTOTUNE))
+                   .prefetch(tf.data.experimental.AUTOTUNE))
 
 
 def load_data(config):

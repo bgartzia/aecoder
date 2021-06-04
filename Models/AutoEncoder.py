@@ -1,4 +1,5 @@
 import os
+import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import (Input, Conv2D, BatchNormalization, ReLU,
                                      MaxPool2D, Dense, Flatten,
@@ -46,6 +47,7 @@ class AutoEncoder(Model):
         ### Use a dense layer to map the latent space dim to the
         ### Symmetric autoencoders decoder input dim
         flatt_decoder_input = Dense(unfold.shape[1])(latent_out)
+        # TODO: add activation function here to flatt_decoder_input
         decoder_input_shape = encoded.get_shape().as_list()
         decoder_input_shape[0] = -1
         # Reshape a flattened vector into a convolutionable struct
@@ -72,7 +74,7 @@ class AutoEncoder(Model):
         self.decoder = Model(inputs=latent_out, outputs=decoded)
 
 
-    def call(self, inputs):
+    def __call__(self, inputs):
         """ Returns the difference between input and autoencoder output.
             It is this function which it has to be minimized
         """

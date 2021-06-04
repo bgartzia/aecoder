@@ -13,17 +13,16 @@ class TrainEngine(object):
                                    'on_end_epoch',
                                    'on_end']}
 
-    def train(self, loss_func, train_pipeline, val_pipeline, epochs, n_episodes, **kwargs):
+    def train(self, loss_func, train_pipeline, val_pipeline, epochs, **kwargs):
         # State of the training procedure
         state = {
-            'batch_pipeline': batch_pipeline,
+            'train_pipeline': train_pipeline,
             'val_pipeline': val_pipeline,
             'loss_func': loss_func,
             'sample': None,
             'epoch': 1,
             'total_batches': 1,
             'epochs': epochs,
-            'n_episodes': n_episodes,
             'best_val_loss': np.inf,
             'early_stopping_triggered': False
         }
