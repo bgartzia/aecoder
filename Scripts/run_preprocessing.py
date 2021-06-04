@@ -59,8 +59,8 @@ if verb: print('\nSplitting files into train and test for autoencoder...')
 ok_files, nok_files = split_OK_NOK(config['data.anots'])
 split = split_train_test(ok_files, fraction=config['data.split.frac'],
                          seed=config['data.split.seed'])
-# Append NOK files to test OK files
-split['test'] = split['test'].append(nok_files, ignore_index=True)
+# Append NOK files to dictionary
+split['NOK'] = nok_files
 
 if verb: print('\nCarrying on data augmentation...')
 # setup augmentator
