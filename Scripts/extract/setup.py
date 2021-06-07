@@ -50,6 +50,7 @@ def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank):
         os.makedirs(dir_path)
 
     # Cast images to uint8
+    results = np.abs(results)
     results = results.astype(np.uint8)
 
     for img,name  in zip(results, res_names):
@@ -67,6 +68,7 @@ def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank):
         os.makedirs(dir_path)
 
     # Cast images to uint8
+    results = np.abs(results)
     results = results.astype(np.uint8)
 
     for img,name  in zip(results, res_names):
