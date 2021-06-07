@@ -1,0 +1,686 @@
+---
+title: "Surface feature analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir = "/home/bgarcia/Proyectos/TFM_AE_casq/R_Scripts")
+```
+
+
+# Lectura, preprocesamiento y rechazo de datos
+
+
+```{r}
+NOK.errs <- read.csv('../Results/myFirstAE/Errors/NOK.csv')
+test.errs <- read.csv('../Results/myFirstAE/Errors/test.csv')
+#NOK.errs <- read.csv('../Results/mySecAE/Errors/NOK.csv')
+#test.errs <- read.csv('../Results/mySecAE/Errors/test.csv')
+```
+
+
+```{r}
+NOK.errs <- cbind(NOK.errs, estado=rep('NOK', nrow(NOK.errs)))
+test.errs <- cbind(test.errs, estado=rep('OK', nrow(test.errs)))
+
+df.errs <- rbind(NOK.errs, test.errs)
+df.errs <- df.errs[, 2:ncol(df.errs)]
+colnames(df.errs)[1:2] <- c('FileName', 'TotError')
+df.errs$TotError <- df.errs$TotError/(128*128)
+```
+
+```{r}
+library(ggplot2)
+```
+
+
+```{r}
+ggplot(data=df.errs, aes(x=TotError)) + geom_density() + facet_wrap(~estado)
+ggplot(data=df.errs[df.errs$estado=='NOK', ], aes(x=TotError)) + geom_density()
+```
+
+
+```{r}
+err.thresh <- 100
+
+mask.nok <- df.errs$estado == 'NOK'
+mask.det <- df.errs$TotError >= err.thresh
+
+# Falsos positivos
+FP <- length(which(!mask.nok & mask.det))
+# Verdaderos positivos
+TP<- length(which(mask.nok & mask.det))
+# Falsos negativos
+FN <- length(which(mask.nok & !mask.det))
+# Verdaderos negativos
+TN <- length(which(!mask.nok & !mask.det))
+
+(a <- matrix(c(TN,FN,FP,TP), ncol=2))
+
+
+```
+
+
+Genera el dataframe con todos los datos anotados. En principio todas las regiones detectadas estan bien, a menos que aparezcan en el fichero de las anotaciones NOK.
+```{r}
+st <- data.frame(st=rep('OK', nrow(features)))
+df.feat <- cbind(Estado=st$st, features)
+
+df.feat$Estado <- as.character(df.feat$Estado)
+
+for (i in 1:nrow(df.feat))
+{
+  for (j in 1:nrow(NOK.data))
+  {
+    if(df.feat$FileName[i] == NOK.data$FileName[j] &
+       df.feat$Part[i] == NOK.data$Part[j] &
+       df.feat$GN.idReg[i] == NOK.data$idReg[j])
+    {
+      df.feat$Estado[i] <- as.character(NOK.data$estado[j])
+    }
+  }
+}
+
+df.feat$Estado <- as.factor(df.feat$Estado)
+```
+
+## Borrado de columnas y filas sin datos
+Borra las columnas que esten completamente vacias.
+
+```{r}
+empty.cols <- (apply(df.feat, 2, FUN=function(x){sum(is.na(x))})/nrow(df.feat) == 1)
+df.feat <- df.feat[, !empty.cols]
+```
+
+
+```{r}
+empty.rows <- apply(df.feat[, 5:ncol(df.feat)], 1, FUN=function(x){sum(is.na(x))})/ncol(df.feat[, 5:ncol(df.feat)]) == 1
+```
+
+Las filas sin datos respectivos a caracteristicas son aquellas piezas relativas a superficies en las que no hay defectos. No debería haber ninguna pieza con defectos superficiales que esté en el grupo de filas que se va a eliminar. Eso significaría que no se han segmentado correctamente los defectos superficiales
+
+```{r}
+if( 0 < sum(df.feat$Estado[empty.rows] != 'OK'))
+{
+    message('CUIDADO LA SEGMENTACION DE ROIS NO SE ESTA LLEVANDO A CABO CORRECTAMENTE')
+}
+```
+
+En las demás filas se han detectado que podrían ser defetos, aunque no los hubiera. Es mediante el análisis que se va a llevar a cabo como se van a intentar encontrar baremos de rechazo de regiones que no son defectos.
+
+Elimina las filas en las que no hay datos:
+
+```{r}
+df.feat <- df.feat[-which(empty.rows), ]
+```
+
+## Detección de variables sin significado
+
+Se van a buscar variables sin desviación, es decir, sin variabilidad y que por ende no van a aportar nada al análisis.
+
+```{r}
+constant.cols <- apply(df.feat[, 5:ncol(df.feat)], 2, function(x){sd(x) == 0})
+constant.cols <- c(rep(F, 4), constant.cols)
+
+message('WARNING: se van a eliminar las anteriores variables. Sus valores medios son los siguientes:', cat(colnames(df.feat)[which(constant.cols)], sep='\n'))
+constant.vals <- sapply(which(constant.cols), function(col){mean(df.feat[, col])})
+cat(constant.vals, sep='\n')
+```
+
+Se eliminan las columnas constantes detectadas mediante el baremo del std.
+```{r}
+df.feat <- df.feat[, !(constant.cols)]
+```
+
+
+Con median absolute deviation, que es mas estable ante posibles outliers en los datos
+```{r}
+constant.cols <- apply(df.feat[, 5:ncol(df.feat)], 2, function(x){mad(x) == 0})
+constant.cols <- c(rep(F, 4), constant.cols)
+
+message('WARNING: se van a eliminar las anteriores variables. Sus valores medianos son los siguientes:', cat(colnames(df.feat)[which(constant.cols)], sep='\n'))
+constant.vals <- sapply(which(constant.cols), function(col){median(df.feat[, col])})
+cat(constant.vals, sep='\n')
+```
+
+
+TODO: piensa si hace falta eliminar estas columnas realmente o no.
+```{r}
+df.feat <- df.feat[, !(constant.cols)]
+```
+
+
+
+
+```{r}
+summary(df.feat)
+```
+
+En primer lugar vamos a escalar los valores
+
+```{r}
+df.feat[, 6:ncol(df.feat)] <- scale(df.feat[, 6:ncol(df.feat)])
+```
+
+
+## Correlación entre variables
+```{r}
+library(reshape2)
+library(ggplot2)
+library(ggrepel)
+```
+
+
+```{r}
+corr.thresh <- 0
+df <- df.feat[, 6:ncol(df.feat)]
+correlation.matrix <- cor(df, method="spearman")
+df2 <- melt(correlation.matrix * (correlation.matrix >= corr.thresh))
+ggplot(df2, aes(x=Var1, y=Var2, fill=abs(value))) + geom_tile() + labs(x="", y="") + theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+¿¿¿Cuales son las variables completamente correlacionadas???
+```{r}
+corr.thresh <- 1
+identity.Mask <- 1 - diag(x=1, nrow(correlation.matrix), ncol(correlation.matrix))
+correlated <- which((correlation.matrix >= corr.thresh) * identity.Mask != 0)
+
+matrix(rep(colnames(correlation.matrix), nrow(correlation.matrix)),
+      ncol=ncol(correlation.matrix))[correlated]
+
+
+```
+
+
+```{r}
+#which(correlation.matrix > corr.thresh)
+sum(correlation.matrix > corr.thresh) / (2 * nrow(correlation.matrix) * ncol(correlation.matrix))
+```
+
+## PCA
+
+```{r}
+pca.feats <- prcomp(df.feat[, 6:ncol(df.feat)])
+df.pca <- cbind(df.feat[, 1:4], data.frame(pca.feats$x))
+
+acc <- 0
+vacc <- c()
+for (sdev in pca.feats$sdev)
+{
+  acc <- acc + sdev
+  vacc <- c(vacc, acc)
+}
+
+dd.vacc <- diff(diff(vacc))
+cps <- max(which(abs(dd.vacc) > 0.2))
+```
+
+```{r}
+library('Rtsne')
+
+tsne.Out <- Rtsne::Rtsne(pca.feats$x[, 1:cps], pca=F, check_duplicates=F)
+df <- cbind(as.data.frame(tsne.Out$Y), estado=df.feat$Estado)
+ggplot(df, aes(x=V1, y=V2, color=estado)) + geom_point() 
+
+```
+
+No se observa ningun cluster notable en los datos :(((.
+```{r}
+ggplot(data=df.pca, aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=df.feat$Estado))
+```
+
+Pero sí que parece haber ciertos datos atípicos.
+
+
+```{r}
+amplify <- 50
+pca.load <- data.frame(Variables = rownames(pca.feats$rotation), pca.feats$rotation)
+
+ggplot(pca.load) +
+  geom_segment(data = pca.load, aes(x = 0, y = 0, xend = (PC1*amplify),
+     yend = (PC2*amplify)), arrow = arrow(length = unit(1/2, "picas")),
+     color = "black") +
+  geom_text_repel(data=pca.load, aes(x = (PC1*amplify),
+                                     y = (PC2*amplify),
+                                     label=Variables),
+                  size=3.5, max.overlaps = 20) 
+```
+
+No parece que ayude demasiado a entender que es lo que ocurre.
+
+## Clustering jerarquico
+
+```{r}
+hc <- hclust(dist(df.feat[, 6:ncol(df.feat)]), method='ward.D')
+plot(hc, hang = -1, cex = 0.6, labels=df.feat$Estado)
+```
+
+No parece que se encuentre explícitamente las razones de ser de las clases que se deben detectar.
+
+```{r}
+library(cluster)
+a <- pam(df.feat[, 6:ncol(df.feat)], length(levels(df.feat$Estado)))
+a$silinfo$avg.width
+plot(silhouette(a))
+```
+
+```{r}
+sil.wid <- c()
+for(i in 1:25)
+{
+    a <- pam(dist(df.feat[, 6:ncol(df.feat)]),i)
+    message(a$silinfo$avg.width)
+    sil.wid <- c(sil.wid, a$silinfo$avg.width)
+}
+ggplot(data=data.frame(sils.width=sil.wid, clusts=1:length(sil.wid)),
+      aes(x=clusts, y=sils.width)) +
+      geom_point() + geom_line()
+```
+
+Anchuras de silouhette muy bajas, y además no parece que se ciña al número de clusters que deberíamos esperar.
+
+## Exportar csv para Basilio
+
+```{r, eval=FALSE}
+write.csv(x=df.feat[, c(1, 6:ncol(df.feat))], file='export_fundamental.csv')
+```
+
+
+
+## Deteccion y tratamiento de outliers
+
+Como se ha visto en la pca que parece que hay datos atípicos se van a intentar eliminar con el objetivo de que nos ayude a conseguir un mejor análisis de los datos.
+
+En high dimensional data utilizar metodos basados en distancia no es recomendable, ya que la distancia tiende a converger a valores muy altos cuando la dimensionalidad crece. De cualquier manera, vamos a intentarlo con lof.
+
+```{r}
+library(dbscan)
+lof.out <- lof(df.feat[, 6:ncol(df.feat)], minPts = 20)
+```
+
+```{r}
+ggplot(data=data.frame(lofactor=lof.out), aes(lofactor)) + geom_density()
+```
+
+Viendo la curva de densidad del factor, etiquetaremos como outlier aquel que tenga un valor mayor a 
+```{r}
+is.outlier <- lof.out > 1.5
+```
+
+```{r}
+summary(df.feat$Estado[is.outlier])
+```
+
+Todos los outliers son valores de tipo OK. Como son muchos mas que los de tipo OK, vamos a quitarnoslos de encima (Lo mas seguro).
+
+Visualizamos cuales son los outliers en un espacio de 2 dimensiones reducido mediante PCA.
+```{r}
+ggplot(data=df.pca, aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=is.outlier))
+```
+
+Hay valores que estan dentro del cluster principal, pero podrian ser tan solo valores que se han proyectado ahi en el espacio bidimensional. Puede que en alguna de las otras dimensiones realmente signifiquen un outlier. Vamos a probar a cargarnos esos valores directamente del df.feat.
+
+```{r}
+df.clean <- df.feat[!is.outlier, ]
+```
+
+Volvemos a escalar las variables por si acaso los outliers afectaban demasiado.
+```{r}
+df.clean[, 6:ncol(df.clean)] <- scale(df.clean[, 6:ncol(df.clean)])
+```
+
+```{r}
+pc.clean <- prcomp(df.clean[, 6:ncol(df.clean)])
+```
+
+```{r}
+ggplot(data=data.frame(pc.clean$x), aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=df.clean$Estado))
+```
+
+
+Vamos a ver cuales son los outliers que molestan en el espacio bidimensional. Para ello realizaremos el analisis lof sobre las proyecciones de los datos en las 2 componentes principales más importantes.
+
+```{r}
+lof.out.2d <- lof(pc.clean$x[, 1:2], minPts = 20)
+
+ggplot(data=data.frame(lof.out.2d), aes(lof.out.2d)) + geom_density()
+```
+
+
+```{r}
+is.outlier.2D <- lof.out.2d > 1.5
+sum(is.outlier.2D)/length(is.outlier.2D)
+```
+
+```{r}
+summary(df.clean$Estado[is.outlier.2D])
+```
+
+
+```{r}
+ggplot(data=data.frame(pc.clean$x), aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=is.outlier.2D))
+```
+
+Parece que con el tema del LOF, hay muchos puntos de las esquinas que no son outliers, pero que por estar en las esquinas/bordes del cluster se tachan de outliers por el algoritmo. Se van a borrar, un poco porque si (por desesperacion).
+
+```{r}
+df.clean.2 <- df.clean[!is.outlier.2D, ]
+```
+
+### PCA sin outliers
+
+```{r}
+out.pca.2 <- prcomp(df.clean.2[, 6:ncol(df.clean.2)])
+ggplot(data=data.frame(out.pca.2$x), aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=df.clean.2$Estado, shape=df.clean.2$Part))
+```
+
+```{r}
+amplify <- 50
+pca.load <- data.frame(Variables = rownames(out.pca.2$rotation), out.pca.2$rotation)
+
+ggplot(pca.load) +
+  geom_segment(data = pca.load, aes(x = 0, y = 0, xend = (PC1*amplify),
+     yend = (PC2*amplify)), arrow = arrow(length = unit(1/2, "picas")),
+     color = "black") +
+  geom_text_repel(data=pca.load, aes(x = (PC1*amplify),
+                                     y = (PC2*amplify),
+                                     label=Variables),
+                  size=3.5, max.overlaps = 20) 
+```
+
+Ordena las variables en funcion de su importancia en el espacio vectorial reducido a Ncomponentes.
+```{r}
+acc <- 0
+vacc <- c()
+for (sdev in out.pca.2$sdev)
+{
+  acc <- acc + sdev
+  vacc <- c(vacc, acc)
+}
+
+dd.vacc <- diff(diff(vacc))
+(Ncomps <- max(which(abs(dd.vacc) > 0.05)))
+ggplot(data=data.frame(var=1:length(out.pca.2$sdev), value=out.pca.2$sdev), aes(x=var, y=value)) +
+  geom_point() + geom_line() + geom_vline(xintercept = Ncomps, color='red') +
+  xlab('Principal component id') + ylab('Desviación estándar') +
+  annotate("text", x=Ncomps+3, y=3,
+            label=paste('Componentes elegidas:', Ncomps),
+            angle=90)
+# geom_text(x=Ncomps+2, y=(max(out.pca.2$sdev)-min(out.pca.2$sdev))/2,
+#           label=paste('Componentes elegidas:', Ncomps),
+#           angle=90)
+```
+
+```{r}
+miv <- rownames(out.pca.2$rotation)[apply(abs(out.pca.2$rotation), 2, FUN=which.max)]
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){max(x)/sum(x)})
+rels <- data.frame(vars=miv, comp.relevance=miv.var)
+rels[1:Ncomps, ]
+```
+
+Tampoco sirve de mucho elegir la variable con mayor proyeccion en cada una de las componentes ya que no suponen un gran valor en relacion a la proyeccion de otras variables en esa misma componente.
+
+Veamos como se reparten las relevancias de las 10 componentes más notables que componen la primera componente principal resultante del PCA.
+
+```{r}
+pc <- 1
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+Y en la segunda componente principal:
+
+```{r}
+pc <- 2
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+Tercera
+```{r}
+pc <- 3
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+Cuarta
+```{r}
+pc <- 4
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+Quinta
+```{r}
+pc <- 5
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+Sexta
+```{r}
+pc <- 6
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+Septima
+```{r}
+pc <- 7
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+
+Octava
+```{r}
+pc <- 8
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+Novena
+```{r}
+pc <- 9
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+Decima
+```{r}
+pc <- 10
+miv.var <- apply(abs(out.pca.2$rotation), 2, FUN=function(x){x/sum(x)})[, pc]
+vivs <- (sort(miv.var, decreasing = T) * 100)[1:Ncomps/2]
+n.vivs <- names(vivs)
+ggplot(data=data.frame(relevance=vivs, variables=n.vivs),
+        aes(x=relevance, fill=relevance, y=reorder(n.vivs, -vivs))) +
+  geom_col(orientation='y', show.legend = F) +
+  ggtitle(paste('Most important variables in principal component', pc)) + 
+  scale_fill_gradient(low = 'darkslateblue', high='brown1') + ylab('')
+```
+
+Utilizando unos métodos de segmentación más limitados las componentes principales siguen siendo parecidas a la versión v001.
+
+1. Tamaño de la región: distancias medias desde el centro hasta el exterior, radios principales de la elipse equitativa, etc.
+2. Homogeneidad de la correlación de grises de la curvatura media, valores medios de albedo, y valores relacionados con la suavidad etc.
+3. Entropía fuzzy de los grises de la curvatura media. Temas de estadísticos de grises sobre la imagen de la curvatura media.
+4. Topología de la región: anisometría, radio, y algunos momentos.
+5. HFS, valor mediano, y otros estadísticos de HFS.
+6. Momento phi de varias imágenes. (Puede que haya correlación mutua?)
+7. Más momentos de grises etc.
+8. Estadísticos de albedo, max min,...
+9. Moments column MC
+10. Moments Row MC.
+
+
+
+```{r}
+tsne.Out <- Rtsne::Rtsne(out.pca.2$x, pca=F, check_duplicates=F)
+df <- cbind(as.data.frame(tsne.Out$Y), estado=df.clean.2$Estado)
+ggplot(df, aes(x=V1, y=V2, color=estado)) + geom_point() 
+
+```
+
+```{r}
+hc <- hclust(dist(df.clean.2[, 6:ncol(df.clean.2)]), method='ward.D')
+plot(hc, hang = -1, cex = 0.6, labels=df.clean.2$Estado)
+hc <- hclust(dist(out.pca.2$x[, 1:Ncomps]), method='ward.D')
+plot(hc, hang = -1, cex = 0.6, labels=df.clean.2$Estado)
+```
+
+
+## Arbol de decision
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+df.clean.2
+dt.out <- rpart(df.clean.2$Estado ~ out.pca.2$x[, 1:Ncomps], control=rpart.control(minsplit=1, maxcompete=10, xval=0))
+dt.out
+rpart.plot(dt.out, type = 2, extra = 1,
+           box.palette = list("red", "green3", "purple"))
+```
+
+Es dificil de interpretar tras utilizando el dataset con las dimensiones reducidas. Por ello se va a hacer un intento con el dataset sin reducción de dimensionalidad mediante pca.
+
+```{r}
+df.for.tree <- df.clean.2[, 6:ncol(df.clean.2)]
+df.for.tree$Estado <- df.clean.2$Estado
+
+dt.out <- rpart(Estado ~., data=df.for.tree, control=rpart.control(minsplit=1, maxcompete=10, xval=10))
+rpart.plot(dt.out, type = 2, extra = 1,
+           box.palette = list("red", "green3", "purple"))
+```
+
+```{r}
+dt.out$variable.importance
+```
+
+## Analisis post-analisis
+
+```{r}
+selected.vars <- c('Estado','FileName','Part','Rotation','GN.idReg',
+                   'HFS.GR.alpha','HFS.GR.beta','MCWob.GR.entropy',
+                   'AL.GR.fuzzy_entropy','AL.GR.fuzzy_perimeter','AL.GR.max',
+                   'AL.GR.mean','AL.GR.median','RG.compactness','HFS.COR.Energy',
+                   'MCWob.GR.deviation','MCWob.GR.plane_deviation','MCWob.GR.max',
+                   'RG.anisometry','RG.moments_phi2','HFS.GR.plane_deviation',
+                   'HFS.COR.Contrast','HFS.COR.Homogeneity','AL.COR.Homogeneity',
+                   'HFS.GR.moments_row','RG.area')
+simp.data <- df.clean.2[, selected.vars]
+```
+
+```{r}
+pca.out <- prcomp(simp.data[, 6:ncol(simp.data)])
+ggplot(data=data.frame(pca.out$x), aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=simp.data$Estado, shape=simp.data$Part))
+```
+
+
+```{r}
+hc <- hclust(dist(simp.data[, 6:ncol(simp.data)]), method='ward.D')
+plot(hc, hang = -1, cex = 0.6, labels=simp.data$Estado)
+```
+
+```{r}
+lof.out <- lof(simp.data[, 6:ncol(simp.data)])
+ggplot(data=data.frame(lof.out.2d), aes(lof.out.2d)) + geom_density()
+```
+
+```{r}
+is.outlier <- lof.out > 1.25
+summary(simp.data$Estado[is.outlier])
+```
+
+
+```{r}
+ggplot(data=data.frame(pca.out$x), aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=is.outlier))
+```
+
+Parece como que el outlier detection no funciona aqui o que.
+
+## Analisis post-analisis: seleccion de variables de split
+
+```{r}
+selected.vars <- c('Estado','FileName','Part','Rotation','GN.idReg',
+                   'HFS.GR.alpha','HFS.GR.plane_deviation','HFS.GR.beta',
+                   'MCWob.GR.entropy','HFS.GR.moments_row','RG.anisometry',
+                   'RG.compactness','HFS.GR.max','RG.area')
+simp.data <- df.clean.2[, selected.vars]
+```
+
+```{r}
+pca.out <- prcomp(simp.data[, 6:ncol(simp.data)])
+ggplot(data=data.frame(pca.out$x), aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=simp.data$Estado, shape=simp.data$Part))
+```
+
+
+
+
+
+
+
+
+
+
+
