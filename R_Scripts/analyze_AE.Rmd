@@ -29,16 +29,24 @@ colnames(df.errs)[1:2] <- c('FileName', 'TotError')
 df.errs$TotError <- df.errs$TotError/(128*128)
 ```
 
+
+# Usar la densidad total
+
+
 ```{r}
 library(ggplot2)
 ```
 
+
+# Densidad de probabilidad del error total
 
 ```{r}
 ggplot(data=df.errs, aes(x=TotError)) + geom_density() + facet_wrap(~estado)
 ggplot(data=df.errs[df.errs$estado=='NOK', ], aes(x=TotError)) + geom_density()
 ```
 
+
+# Detección mediante error total
 
 ```{r}
 err.thresh <- 100
@@ -60,6 +68,56 @@ TN <- length(which(!mask.nok & !mask.det))
 
 ```
 
+
+# Latent Space studies
+
+```{r}
+NOK.lss <- read.csv('../Results/myFirstAE/Latent_Spaces/NOK.csv')
+test.lss <- read.csv('../Results/myFirstAE/Latent_Spaces/test.csv')
+train.lss <- read.csv('../Results/myFirstAE/Latent_Spaces/train.csv')
+#NOK.lss <- read.csv('../Results/mySecAE/Latent_Spaces/NOK.csv')
+#test.lss <- read.csv('../Results/mySecAE/Latent_Spaces/test.csv')
+```
+
+```{r}
+NOK.lss <- cbind(estado=rep('NOK', nrow(NOK.lss)), NOK.lss)
+test.lss <- cbind(estado=rep('OK', nrow(test.lss)), test.lss)
+train.lss <- cbind(estado=rep('OK', nrow(train.lss)), train.lss)
+
+df.lss <- rbind(NOK.lss, test.lss, train.lss)
+df.lss <- df.lss[, -2]
+colnames(df.lss)[2] <- c('FileName')
+```
+
+
+## TSNE
+
+
+```{r}
+library('Rtsne')
+
+tsne.Out <- Rtsne::Rtsne(df.lss[, 3:ncol(df.lss)], pca=T, check_duplicates=F)
+df <- cbind(as.data.frame(tsne.Out$Y), estado=df.lss$estado)
+ggplot(df, aes(x=V1, y=V2, color=estado)) + geom_point() 
+```
+
+##  PCA
+
+```{r}
+df.lss[, 3:ncol(df.lss)] <- scale(df.lss[, 3:ncol(df.lss)])
+pca <- prcomp(df.lss[, 3:ncol(df.lss)])
+df.pca <- cbind(df.lss[, 1:2], pca$x)
+```
+
+```{r}
+ggplot(data=df.pca, aes(x=PC1, y=PC2)) +
+    geom_point(aes(color=estado))
+```
+
+
+
+
+# MISC
 
 Genera el dataframe con todos los datos anotados. En principio todas las regiones detectadas estan bien, a menos que aparezcan en el fichero de las anotaciones NOK.
 ```{r}
