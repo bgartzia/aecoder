@@ -28,7 +28,10 @@ def save_EXTRACT_LSPACES(results, res_names, out_path, model_name, bank):
         os.makedirs(dir_path)
 
     # Create pandas dataframe from tf.dataset
-    df = pd.DataFrame(results) 
+    df = pd.DataFrame(results)
+    # Take only the file basename
+    res_names = [os.path.basename(name) for name in res_names]
+
     # Bind file name columns
     res_names = pd.DataFrame(res_names)
     df = pd.concat([res_names.reset_index(drop=True), df], axis=1)
@@ -91,6 +94,9 @@ def save_EXTRACT_TOT_ERROR(results, res_names, out_path, model_name, bank):
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
+
+    # Take only the file basename
+    res_names = [os.path.basename(name) for name in res_names]
 
     # Create pandas dataframe from tf.dataset
     df = pd.DataFrame(results) 
