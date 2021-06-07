@@ -117,17 +117,18 @@ class AutoEncoder(Model):
 
         # Extract difference between the input and the autoencoder output
         ae_diff = self(inputs)
+        abs_diff = tf.math.abs(ae_diff)
         
         if self.seg_thresh is not None:
             # Extract segmented mask
-            mask = tf.cast(ae_diff > self.seg_thresh, dtype=tf.float32)
+            mask = tf.cast(abs_diff > self.seg_thresh, dtype=tf.float32)
         else:
             # If threshold hasn't been defined, just return it all
-            mask = tf.constant(1, shape=ae_diff.shape)
+            mask = tf.constant(1, shape=abs_diff.shape, dtype=tf.float32)
         # Return product between values and mask. Thus, not only the segmented
         # ROIs are returned but also the intensity of the detection, or the 
         # "Confidence", or the temperature of the _HOT-SPOTS_
-        return tf.multiply(ae_diff, mask)
+        return tf.multiply(abs_diff, mask)
 
 
     def get_total_error(self, inputs, **kwargs):

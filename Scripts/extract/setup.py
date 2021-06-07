@@ -13,11 +13,11 @@ from Data import load_data_for_extraction
 EXT_OPT_PATHS = {'EXTRACT_LSPACES':'Latent_Spaces',
                  'EXTRACT_RAW_OUT':'Out_Images',
                  'EXTRACT_DIFFS':'Out_Differences',
-                 'EXTRACT_SEGMENTS':'Out_Differences',
+                 'EXTRACT_SEGMENTS':'Segmented_Defects',
                  'EXTRACT_TOT_ERROR':'Errors'}
 
 
-def save_EXTRACT_LSPACES(results, res_names, out_path, model_name, bank):
+def save_EXTRACT_LSPACES(results, res_names, out_path, model_name, bank, **kwargs):
     """
     """
 
@@ -40,7 +40,7 @@ def save_EXTRACT_LSPACES(results, res_names, out_path, model_name, bank):
     df.to_csv(os.path.join(dir_path, bank + '.csv'))
 
 
-def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank):
+def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank, **kwargs):
     """
     """
 
@@ -58,7 +58,7 @@ def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank):
         cv2.imwrite(os.path.join(dir_path, filename), img)
     
 
-def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank):
+def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank, **kwargs):
     """
     """
 
@@ -76,17 +76,36 @@ def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank):
         cv2.imwrite(os.path.join(dir_path, filename), img)
 
 
-def save_EXTRACT_SEGMENTS(results, res_names, out_path, model_name, bank):
+def save_EXTRACT_SEGMENTS(results, res_names, out_path, model_name, bank,
+                          input_imgs=None):
     """ TODO: SEGMENTATION THRESH MUST BE SET FROM SOMEWHERE.
         IT IS NOT IMPLEMENTED YET
     """
 
-    assert False
     dir_path = os.path.join(out_path, model_name,
-                            EXT_OPT_PATHS['EXTRACT_RAW_OUT'], bank)
+                            EXT_OPT_PATHS['EXTRACT_SEGMENTS'], bank)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+    # Cast images to uint8
+    results = results.astype(np.uint8)
+
+    for img, seg, name  in zip(input_imgs, results, res_names):
+        # Generate mask and detection heatmap
+        _, mask = cv2.threshold(seg, 1, 255, cv2.THRESH_BINARY)
+        _, inv_mask = cv2.threshold(seg, 1, 255, cv2.THRESH_BINARY_INV)
+        heatmap_img = cv2.applyColorMap(seg, cv2.COLORMAP_JET)
+
+        # Add heatmap to img
+        img = cv2.cvtColor(img.numpy().astype(np.uint8), cv2.COLOR_GRAY2RGB)
+        img = cv2.bitwise_and(img, img, mask=inv_mask)
+        heatmap_img = cv2.bitwise_and(heatmap_img, heatmap_img, mask=mask)
+        heatmap_img = cv2.addWeighted(img, 1, heatmap_img, 1, 0)
+        filename = os.path.basename(name)
+        cv2.imwrite(os.path.join(dir_path, filename), heatmap_img)
 
 
-def save_EXTRACT_TOT_ERROR(results, res_names, out_path, model_name, bank):
+def save_EXTRACT_TOT_ERROR(results, res_names, out_path, model_name, bank, **kwargs):
     """
     """
 
@@ -126,6 +145,7 @@ def extract(config):
     model = AutoEncoder(config['data.shape'], config['model.layers'],
                         config['model.latent_dim'])
     model.load(config['model.save_path'], config['model.base_name'])
+    model.seg_thresh = config['model.segment_thresh']
 
     # Load data 
     img_bank, img_names = load_data_for_extraction(config)
@@ -137,7 +157,7 @@ def extract(config):
                 bank_res = model.code_call(data=data, code=code)
                 code_2_save_call[code](bank_res.numpy(), img_names[bank],
                                        config['out.path'],
-                                       config['model.base_name'], bank)
+                                       config['model.base_name'], bank, input_imgs=data)
 
 
 
