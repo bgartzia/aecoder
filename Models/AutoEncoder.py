@@ -9,6 +9,9 @@ from tensorflow import reshape as tf_reshape
 
 class AutoEncoder(Model):
 
+
+
+
     def __init__(self, input_shape, layers_filter_sizes, latent_space_dim, 
                  segmentation_thresh = None):
         """ Input_shape: 3 dimensional tuple. h,w,channels or som like it
@@ -73,8 +76,15 @@ class AutoEncoder(Model):
         self.encoder = Model(inputs=x, outputs=latent)
         self.decoder = Model(inputs=latent_out, outputs=decoded)
 
+        self.__code_2_call = {'EXTRACT_LSPACES':self.get_latent_vector,
+                              'EXTRACT_RAW_OUT':self.get_decoder_out,
+                              'EXTRACT_DIFFS':self,
+                              'EXTRACT_SEGMENTS':self.get_segmented_anomalies,
+                              'EXTRACT_TOT_ERROR':self.get_total_error
+                             }
 
-    def __call__(self, inputs):
+
+    def __call__(self, inputs, **kwargs):
         """ Returns the difference between input and autoencoder output.
             It is this function which it has to be minimized
         """
@@ -85,13 +95,14 @@ class AutoEncoder(Model):
         return (outputs - inputs)
 
 
-    def get_latent_vector(self, inputs):
+    def get_latent_vector(self, inputs, **kwargs):
         """ Returns the values stored in the latent space of the autoencoder
         """
 
         return self.encoder(inputs)
 
-    def get_decoder_out(self, inputs):
+
+    def get_decoder_out(self, inputs, **kwargs):
         """ Returns the output of the decoder, without substracting the input.
         """
 
@@ -99,7 +110,8 @@ class AutoEncoder(Model):
 
         return self.decoder(hidden_pipeline)
 
-    def get_segmented_anomalies(self, inputs):
+
+    def get_segmented_anomalies(self, inputs, **kwargs):
         """ Returns the segmented hot-spots, and their intensity
         """
 
@@ -116,6 +128,18 @@ class AutoEncoder(Model):
         # ROIs are returned but also the intensity of the detection, or the 
         # "Confidence", or the temperature of the _HOT-SPOTS_
         return tf.multiply(ae_diff, mask)
+
+
+    def get_total_error(self, inputs, **kwargs):
+        """ Calculates the total error between the input and the input for each
+            of the images
+        """
+
+        diffs = self(inputs)
+        #TODO@BGARCIA: should the loss function be parametrizable??
+        errors = tf.map_fn(tf.nn.l2_loss, diffs)
+        return errors
+
 
     def save(self, directory, name_root):
         """ Saves encoder and decoder models in the specified directory.
@@ -146,5 +170,12 @@ class AutoEncoder(Model):
 
         self.encoder.load_weights(enc_path)
         self.decoder.load_weights(dec_path)
+
+
+    def code_call(self, data, code):
+        """ Calls an specific extraction method depending on the extraction code.
+        """
+
+        return self.__code_2_call[code](data)
 
 
