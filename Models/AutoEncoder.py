@@ -76,13 +76,6 @@ class AutoEncoder(Model):
         self.encoder = Model(inputs=x, outputs=latent)
         self.decoder = Model(inputs=latent_out, outputs=decoded)
 
-        self.__code_2_call = {'EXTRACT_LSPACES':self.get_latent_vector,
-                              'EXTRACT_RAW_OUT':self.get_decoder_out,
-                              'EXTRACT_DIFFS':self,
-                              'EXTRACT_SEGMENTS':self.get_segmented_anomalies,
-                              'EXTRACT_TOT_ERROR':self.get_total_error
-                             }
-
 
     def __call__(self, inputs, **kwargs):
         """ Returns the difference between input and autoencoder output.
@@ -171,12 +164,5 @@ class AutoEncoder(Model):
 
         self.encoder.load_weights(enc_path)
         self.decoder.load_weights(dec_path)
-
-
-    def code_call(self, data, code):
-        """ Calls an specific extraction method depending on the extraction code.
-        """
-
-        return self.__code_2_call[code](data)
 
 

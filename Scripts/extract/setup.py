@@ -154,6 +154,18 @@ code_2_save_call = \
  'EXTRACT_TOT_ERROR':save_EXTRACT_TOT_ERROR}
 
 
+def code_2_exec(model, data, code):
+    """ Is like a switch case but with a dictionary """
+    call = {'EXTRACT_LSPACES':model.get_latent_vector,
+             'EXTRACT_RAW_OUT':model.get_decoder_out,
+             'EXTRACT_DIFFS':model,
+             'EXTRACT_SEGMENTS':model.get_segmented_anomalies,
+             'EXTRACT_TOT_ERROR':model.get_total_error
+            }
+
+    return call[code](data)
+
+
 
 def extract(config):
 
@@ -170,7 +182,7 @@ def extract(config):
     for bank in img_bank.keys():
         for code in config['out.mode']:
             for data in img_bank[bank]:
-                bank_res = model.code_call(data=data, code=code)
+                bank_res = code_2_exec(model=model, data=data, code=code)
                 code_2_save_call[code](bank_res.numpy(), img_names[bank],
                                        config['out.path'],
                                        config['model.base_name'], bank, input_imgs=data)
