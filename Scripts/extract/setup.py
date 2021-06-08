@@ -8,6 +8,7 @@ import numpy as np # To cast images to uint8
 import pandas as pd # csv saving
 from Models import AutoEncoder
 from Data import load_data_for_extraction
+import tensorflow as tf
 
 # Converts config extraction CODE id to outputh directory name
 EXT_OPT_PATHS = {'EXTRACT_LSPACES':'Latent_Spaces',
@@ -98,6 +99,9 @@ def save_EXTRACT_SEGMENTS(results, res_names, out_path, model_name, bank,
 
         # If the is any pixel highlighted by the mask, ALARMA
         defect_detected = np.max(mask) > 0
+
+        # Reduce img dims by calculating mean
+        img = tf.math.reduce_mean(img, axis=-1, keepdims=True)
 
         # Add heatmap to img
         img = cv2.cvtColor(img.numpy().astype(np.uint8), cv2.COLOR_GRAY2RGB)

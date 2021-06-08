@@ -111,7 +111,9 @@ class AutoEncoder(Model):
         # Extract difference between the input and the autoencoder output
         ae_diff = self(inputs)
         abs_diff = tf.math.abs(ae_diff)
-        
+        # In case there are multiple channels, reduce them to 1
+        abs_diff = tf.math.reduce_mean(abs_diff, axis=-1, keepdims=True)
+
         if self.seg_thresh is not None:
             # Extract segmented mask
             mask = tf.cast(abs_diff > self.seg_thresh, dtype=tf.float32)
