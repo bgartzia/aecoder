@@ -96,13 +96,29 @@ def save_EXTRACT_SEGMENTS(results, res_names, out_path, model_name, bank,
         _, inv_mask = cv2.threshold(seg, 1, 255, cv2.THRESH_BINARY_INV)
         heatmap_img = cv2.applyColorMap(seg, cv2.COLORMAP_JET)
 
+        # If the is any pixel highlighted by the mask, ALARMA
+        defect_detected = np.max(mask) > 0
+
         # Add heatmap to img
         img = cv2.cvtColor(img.numpy().astype(np.uint8), cv2.COLOR_GRAY2RGB)
         img = cv2.bitwise_and(img, img, mask=inv_mask)
         heatmap_img = cv2.bitwise_and(heatmap_img, heatmap_img, mask=mask)
         heatmap_img = cv2.addWeighted(img, 1, heatmap_img, 1, 0)
         filename = os.path.basename(name)
-        cv2.imwrite(os.path.join(dir_path, filename), heatmap_img)
+
+        if not defect_detected:
+            cv2.imwrite(os.path.join(dir_path, filename), heatmap_img)
+        else:
+            pass
+            def_path = os.path.join(dir_path, 'Rejected')
+            if not os.path.exists(def_path):
+                os.makedirs(def_path)
+
+            # Add red square to the image
+            height, width = mask.shape[0:2]
+            cv2.rectangle(heatmap_img, (0, 0), (width, height), (0, 0, 255), 3)
+            # Save image
+            cv2.imwrite(os.path.join(def_path, filename), heatmap_img)
 
 
 def save_EXTRACT_TOT_ERROR(results, res_names, out_path, model_name, bank, **kwargs):
