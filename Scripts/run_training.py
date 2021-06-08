@@ -36,4 +36,4 @@ dbg = args['verbose']
 config = configparser.ConfigParser()
 config.read(args['config'])
 config = preprocess_config(config['TRAIN'])
-train(config)
+train(config, dbg=dbg)

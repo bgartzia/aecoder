@@ -13,15 +13,18 @@ from .train_engine import TrainEngine
 from random import seed as base_seed
 
 
-def train(config):
+def train(config, dbg=False):
     np.random.seed(config['train.seed'])
     tf.random.set_seed(config['train.seed'])
     base_seed(config['train.seed'])
 
+    if dbg: print('\nLoading data...')
     ret = load_data(config)
     train_pipe = ret['train']
     val_pipe = ret['val']
+    if dbg: print('Data loaded.\n')
 
+    if dbg: print('\nGetting device set up...')
     # Determine device
     if config['exec.cuda']:
         if tf.test.is_gpu_available():
@@ -39,11 +42,17 @@ def train(config):
 
     else:
         device_name = 'CPU:0'
+    if dbg: print(f'Device set. Device name: \t{device_name}\n')
 
+    if dbg: print('\nInitializing model...')
     # Setup training operations
     model = AutoEncoder(config['data.shape'], config['model.layers'],
                         config['model.latent_dim'])
+    if dbg: print('Model initialized.\n')
+
+    if dbg: print('\nSetting up training environment...')
     optimizer = tf.keras.optimizers.Adam(config['train.lr'])
+
 
     # Metrics to gather
     train_loss = tf.metrics.Mean(name='train_loss')
@@ -125,6 +134,8 @@ def train(config):
         for batch in val_pipeline:
             val_step(loss_func, batch)
     train_engine.hooks['on_batch_end'] = on_batch_end
+
+    if dbg: print('Training environment set up.\n')
 
     time_start = time.time()
     with tf.device(device_name):
