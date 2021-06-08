@@ -26,7 +26,9 @@ class Augmentor:
                                     Ations.RandomBrightnessContrast(brightness_limit=0.1,
                                                                     contrast_limit=0.2,
                                                                     p=0.2),
-                                    Ations.CLAHE(2, p=0.3)
+                                    #Ations.CLAHE(2, p=0.15),
+                                    Ations.ChannelDropout(p=0.15),
+                                    Ations.Solarize(threshold=100, p=0.3)
                                             ])
 
 
