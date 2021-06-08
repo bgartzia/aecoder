@@ -1,6 +1,6 @@
 import os
 import tensorflow as tf
-from tensorflow.keras import Model, Sequential
+from tensorflow.keras import Model
 from tensorflow.keras.layers import (Input, Conv2D, BatchNormalization, ReLU,
                                      MaxPool2D, Dense, Flatten,
                                      Conv2DTranspose, UpSampling2D)
