@@ -6,7 +6,7 @@ from train import train
 
 def preprocess_config(c):
     conf_dict = {}
-    int_params = ['data.gpu', 'data.cuda', 'model.latent_dim', 'train.epochs',
+    int_params = ['exec.gpu', 'exec.cuda', 'model.latent_dim', 'train.epochs',
                   'train.patience', 'train.seed', 'train.shuffle_buffer',
                   'train.batch_size']
     float_params = ['train.lr']
