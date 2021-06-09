@@ -64,7 +64,8 @@ split['NOK'] = nok_files
 
 if verb: print('\nCarrying on data augmentation...')
 # setup augmentator
-augment_layer = Augmentor(config['data.out'], config['data.shape'])
+augment_layer = Augmentor(config['data.out'], config['data.shape'],
+                          config['augm.pipeline'])
 # call augmentator
 augment_layer.augmentate(config['augm.times'], config['data.input'],
                          split, config['data.format'])

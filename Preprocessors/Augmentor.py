@@ -1,36 +1,15 @@
 import albumentations as Ations
 import os
 import cv2
+from .Augm_Pipelines import Pipeline_Selector
 
 
 class Augmentor:
     
-    def __init__(self, out_path, out_shape):
+    def __init__(self, out_path, out_shape, pipe_code):
         self.out_path = out_path
         self.out_shape = out_shape
-        self.augm_pipeline = Ations.Compose([
-                                    Ations.CoarseDropout(max_holes=64,
-                                                         max_height=2,
-                                                         max_width=2,p=0.2),
-                                    Ations.Emboss(p=0.35),
-                                    Ations.GaussNoise(var_limit=(0,100),p=1),
-                                    Ations.HorizontalFlip(p=0.3),
-                                    Ations.VerticalFlip(p=0.3),
-                                    Ations.Rotate(limit=180,
-                                                  border_mode = cv2.BORDER_REPLICATE,p=1),
-                                    Ations.ShiftScaleRotate(scale_limit=0,
-                                                            rotate_limit=0,
-                                                            shift_limit=0.02,
-                                                            p=1),
-                                    Ations.Perspective(scale=(0.001, 0.01),p=0.5),
-                                    Ations.RandomBrightnessContrast(brightness_limit=0.1,
-                                                                    contrast_limit=0.2,
-                                                                    p=0.2),
-                                    #Ations.CLAHE(2, p=0.15),
-                                    Ations.ChannelDropout(p=0.15),
-                                    Ations.Solarize(threshold=100, p=0.3)
-                                            ])
-
+        self.augm_pipeline = Pipeline_Selector[pipe_code]
 
 
     def augmentate(self, times, path, splitted, format='png'):
