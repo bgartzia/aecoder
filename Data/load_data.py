@@ -70,7 +70,7 @@ def load_data(config):
                                             config['train.batch_size']),
              'val': setup_tf_data_pipeline(np_val,
                                            np_val.shape[0],
-                                           np_val.shape[0])
+                                           config['train.batch_size'])
            }
 
 
