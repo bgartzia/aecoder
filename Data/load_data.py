@@ -10,7 +10,8 @@ import tensorflow as tf
 from random import shuffle
 
 
-def read_numpy_images_from_dir(dir_path, img_format, shuff=True, names=False):
+def read_numpy_images_from_dir(dir_path, img_format, shuff=True, names=False,
+                               rescale=True):
     """ Reads all the images with the given *img_format from *dir_path.
     """
 
@@ -24,6 +25,12 @@ def read_numpy_images_from_dir(dir_path, img_format, shuff=True, names=False):
     # Add channel dim to grayscale images
     if len(np_imgs.shape) < 4:
         np_imgs = np.expand_dims(np_imgs, -1)
+
+    # Cast to float32
+    np_imgs = np_imgs.astype(dtype=np.float32)
+
+    # Rescale images (if wanted)
+    if rescale: np_imgs = np_imgs/255.
 
     if names:
         return np_imgs.astype(dtype=np.float32), dir_files
