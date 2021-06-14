@@ -85,7 +85,8 @@ def load_data_for_extraction(config):
                                                       shuff=False, names=True,
                                                       rescale=config['data.rescale'])
         key = path.split('/')[-1]
-        img_bank[key] = setup_tf_data_pipeline(np_imgs, 0, np_imgs.shape[0],
+        img_bank[key] = setup_tf_data_pipeline(np_imgs, 0,
+                                               min(config['data.batch_size'], np_imgs.shape[0]),
                                                shuffle=False)
         name_bank[key] = nm_imgs
 
