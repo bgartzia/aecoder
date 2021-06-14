@@ -103,16 +103,25 @@ class AutoEncoder(Model):
 
         return self.decoder(hidden_pipeline)
 
-
-    def get_segmented_anomalies(self, inputs, **kwargs):
-        """ Returns the segmented hot-spots, and their intensity
-        """
+    
+    def get_reduced_diff(self, inputs, **kwargs):
+        """ Returns the output diff processed and reduced onto 1 channel """
 
         # Extract difference between the input and the autoencoder output
         ae_diff = self(inputs)
         abs_diff = tf.math.abs(ae_diff)
         # In case there are multiple channels, reduce them to 1
+        #abs_diff = tf.math.reduce_sum(abs_diff, axis=-1, keepdims=True)
         abs_diff = tf.math.reduce_mean(abs_diff, axis=-1, keepdims=True)
+
+        return abs_diff
+
+
+    def get_segmented_anomalies(self, inputs, **kwargs):
+        """ Returns the segmented hot-spots, and their intensity
+        """
+
+        abs_diff = self.get_reduced_diff(inputs, **kwargs)
 
         if self.seg_thresh is not None:
             # Extract segmented mask
