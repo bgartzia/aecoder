@@ -9,6 +9,7 @@ def preprocess_config(c):
     int_params = ['exec.gpu', 'exec.cuda', 'model.latent_dim', 'train.epochs',
                   'train.patience', 'train.seed', 'train.shuffle_buffer',
                   'train.batch_size']
+    bool_params = ['data.rescale']
     float_params = ['train.lr']
     int_list_params = ['data.shape', 'model.layers']
     for param in c:
@@ -16,6 +17,8 @@ def preprocess_config(c):
             conf_dict[param] = int(c[param])
         elif param in float_params:
             conf_dict[param] = float(c[param])
+        elif param in bool_params:
+            conf_dict[param] = c[param] == 'True'
         elif param in int_list_params:
             conf_dict[param] = [int(val) for val in c[param].split(',')]
 

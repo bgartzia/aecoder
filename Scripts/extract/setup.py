@@ -41,7 +41,7 @@ def save_EXTRACT_LSPACES(results, res_names, out_path, model_name, bank, **kwarg
     df.to_csv(os.path.join(dir_path, bank + '.csv'))
 
 
-def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank, **kwargs):
+def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank, rescale, **kwargs):
     """
     """
 
@@ -50,6 +50,7 @@ def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank, **kwarg
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
+    results = 255. * results if rescale else results
     # Cast images to uint8
     results = np.abs(results)
     results = results.astype(np.uint8)
@@ -59,7 +60,7 @@ def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank, **kwarg
         cv2.imwrite(os.path.join(dir_path, filename), img)
     
 
-def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank, **kwargs):
+def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank, rescale, **kwargs):
     """
     """
 
@@ -68,6 +69,7 @@ def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank, **kwargs)
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
+    results = 255. * results if rescale else results
     # Cast images to uint8
     results = np.abs(results)
     results = results.astype(np.uint8)
@@ -78,7 +80,7 @@ def save_EXTRACT_DIFFS(results, res_names, out_path, model_name, bank, **kwargs)
 
 
 def save_EXTRACT_SEGMENTS(results, res_names, out_path, model_name, bank,
-                          input_imgs=None):
+                          rescale, input_imgs=None):
     """ TODO: SEGMENTATION THRESH MUST BE SET FROM SOMEWHERE.
         IT IS NOT IMPLEMENTED YET
     """
@@ -88,6 +90,8 @@ def save_EXTRACT_SEGMENTS(results, res_names, out_path, model_name, bank,
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
+    results = 255. * results if rescale else results
+    input_imgs = 255. * input_imgs if rescale else input_imgs
     # Cast images to uint8
     results = results.astype(np.uint8)
 
@@ -162,7 +166,7 @@ def code_2_exec(model, data, code):
     """ Is like a switch case but with a dictionary """
     call = {'EXTRACT_LSPACES':model.get_latent_vector,
              'EXTRACT_RAW_OUT':model.get_decoder_out,
-             'EXTRACT_DIFFS':model,
+             'EXTRACT_DIFFS':model.get_reduced_diff,
              'EXTRACT_SEGMENTS':model.get_segmented_anomalies,
              'EXTRACT_TOT_ERROR':model.get_total_error
             }
@@ -178,6 +182,8 @@ def extract(config):
                         config['model.latent_dim'])
     model.load(config['model.save_path'], config['model.base_name'])
     model.seg_thresh = config['model.segment_thresh']
+    model.seg_thresh = (model.seg_thresh/255. if config['data.rescale']
+                                              else model.seg_thresh)
 
     # Load data 
     img_bank, img_names = load_data_for_extraction(config)
@@ -189,7 +195,9 @@ def extract(config):
                 bank_res = code_2_exec(model=model, data=data, code=code)
                 code_2_save_call[code](bank_res.numpy(), img_names[bank],
                                        config['out.path'],
-                                       config['model.base_name'], bank, input_imgs=data)
+                                       config['model.base_name'], bank,
+                                       rescale=config['data.rescale'],
+                                       input_imgs=data)
 
 
 

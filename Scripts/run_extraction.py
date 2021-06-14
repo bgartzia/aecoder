@@ -11,6 +11,7 @@ def preprocess_config(c):
     conf_dict = {}
     int_params = ['model.segment_thresh']
     #float_params = ['train.lr']
+    bool_params = ['data.rescale']
     int_list_params = ['data.shape', 'model.layers']
     str_list_params = ['data.in', 'out.mode']
     for param in c:
@@ -18,6 +19,8 @@ def preprocess_config(c):
             conf_dict[param] = [int(val) for val in c[param].split(',')]
         elif param in int_params:
             conf_dict[param] = int(c[param])
+        elif param in bool_params:
+            conf_dict[param] = c[param] == 'True'
         elif param in str_list_params:
             conf_dict[param] = [val for val in c[param].split(',')]
         else:
