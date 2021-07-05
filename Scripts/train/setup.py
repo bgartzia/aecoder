@@ -57,6 +57,7 @@ def train(config, dbg=False):
     # Metrics to gather
     train_loss = tf.metrics.Mean(name='train_loss')
     val_loss = tf.metrics.Mean(name='val_loss')
+    train_losses = []
     val_losses = []
 
     @tf.function
@@ -111,6 +112,8 @@ def train(config, dbg=False):
             print("Saving new best model with loss: ", cur_loss)
             state['best_val_loss'] = cur_loss
             model.save(config['model.save_path'], config['model.base_name'])
+
+        train_losses.append(train_loss.result().numpy())
         val_losses.append(cur_loss)
 
         # Early stopping
@@ -147,8 +150,13 @@ def train(config, dbg=False):
             epochs=config['train.epochs'])
     time_end = time.time()
 
+
     elapsed = time_end - time_start
     h, min = elapsed//3600, elapsed%3600//60
     sec = elapsed-min*60
     print(f"Training took: {h} h {min} min {sec} sec")
+
+    losses = np.array([train_losses, val_losses]).T
+    np.savetxt(config['log.losses'], losses, delimiter=',',
+               header='Training loss,validation loss')
 
