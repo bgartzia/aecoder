@@ -34,11 +34,13 @@ parser.add_argument("--config", type=str, default="./Configs/default.INI",
 parser.add_argument("-v", dest="verbose", action='store_true', default=False,
                     help="Print traces/Verbose.")
 
-# Run training
+
+# Run extraction
 args = vars(parser.parse_args())
 dbg = args['verbose']
+if dbg: print("Going to carry on result extraction")
 config = configparser.ConfigParser()
 config.read(args['config'])
 config = preprocess_config(config['EXTRACT'])
-extract(config)
+extract(config, dbg)
 

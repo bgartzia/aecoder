@@ -34,11 +34,18 @@ def save_EXTRACT_LSPACES(results, res_names, out_path, model_name, bank, **kwarg
     res_names = [os.path.basename(name) for name in res_names]
 
     # Bind file name columns
-    res_names = pd.DataFrame(res_names)
+    res_names = pd.DataFrame(res_names, columns=["FileName"])
     df = pd.concat([res_names.reset_index(drop=True), df], axis=1)
 
+    out_file = os.path.join(dir_path, bank + '.csv')
+    try:
+        analysed = pd.read_csv(out_file)
+        analysed = pd.concat([analysed, df], axis=0)
+    except FileNotFoundError:
+        analysed = df
+
     # Write csv
-    df.to_csv(os.path.join(dir_path, bank + '.csv'))
+    analysed.to_csv(out_file, index=False)
 
 
 def save_EXTRACT_RAW_OUT(results, res_names, out_path, model_name, bank, rescale, **kwargs):
@@ -143,14 +150,20 @@ def save_EXTRACT_TOT_ERROR(results, res_names, out_path, model_name, bank, **kwa
     # Take only the file basename
     res_names = [os.path.basename(name) for name in res_names]
 
-    # Create pandas dataframe from tf.dataset
-    df = pd.DataFrame(results) 
+    df = pd.DataFrame(results)
     # Bind file name columns
-    res_names = pd.DataFrame(res_names)
+    res_names = pd.DataFrame(res_names, columns=["FileName"])
     df = pd.concat([res_names.reset_index(drop=True), df], axis=1)
 
+    out_file = os.path.join(dir_path, bank + '.csv')
+    try:
+        analysed = pd.read_csv(out_file)
+        analysed = pd.concat([analysed, df], axis=0)
+    except FileNotFoundError:
+        analysed = df
+
     # Write csv
-    df.to_csv(os.path.join(dir_path, bank + '.csv'))
+    analysed.to_csv(out_file, index=False)
 
 
 
@@ -175,7 +188,7 @@ def code_2_exec(model, data, code):
 
 
 
-def extract(config):
+def extract(config, dbg=False):
 
     # Load model and saved weights
     model = AutoEncoder(config['data.shape'], config['model.layers'],
@@ -184,20 +197,30 @@ def extract(config):
     model.seg_thresh = config['model.segment_thresh']
     model.seg_thresh = (model.seg_thresh/255. if config['data.rescale']
                                               else model.seg_thresh)
+    if dbg: print("Model loaded.\n")
 
     # Load data 
+    if dbg: print("Loading data...")
     img_bank, img_names = load_data_for_extraction(config)
+    if dbg: print("Data loaded.\n")
 
     # Call extraction
+    if dbg: print("Extracting data...")
     for bank in img_bank.keys():
         for code in config['out.mode']:
-            for data in img_bank[bank]:
+            if dbg: print(f"Extracting {code} from {bank}...")
+            for i_batch, data in enumerate(img_bank[bank]):
+                if dbg: print(f"Batch n.{i_batch}...")
                 bank_res = code_2_exec(model=model, data=data, code=code)
-                code_2_save_call[code](bank_res.numpy(), img_names[bank],
+                if dbg: print(f"Saving to file...")
+                code_2_save_call[code](bank_res.numpy(),
+                                       img_names[bank][i_batch * config['data.batch_size']:(i_batch + 1) * config['data.batch_size']],
                                        config['out.path'],
                                        config['model.base_name'], bank,
                                        rescale=config['data.rescale'],
                                        input_imgs=data)
+            if dbg: print("Extracted.\n")
+
 
 
 
