@@ -83,6 +83,44 @@ __all_surface_v1_pipe = Ations.Compose([
                  ], p=0.1),
 ])
 
+__all_surface_v2_pipe = Ations.Compose([
+    Ations.GaussNoise(var_limit=(0,100),
+                      p=1),
+    Ations.VerticalFlip(p=0.3),
+    Ations.Rotate(limit=1,
+                  border_mode = cv2.BORDER_REFLECT_101,
+                  p=0.7),
+    Ations.ShiftScaleRotate(scale_limit=0,
+                            rotate_limit=0,
+                            shift_limit=0.05,
+                            border_mode=cv2.BORDER_REFLECT_101,
+                            p=0.8),
+    Ations.Perspective(scale=(0.001, 0.01),
+                              p=0.5),
+    Ations.RandomBrightnessContrast(brightness_limit=0.07,
+                                    contrast_limit=0.15,
+                                    p=0.3),
+])
+
+
+__all_surface_v3_pipe = Ations.Compose([
+    Ations.GaussNoise(var_limit=(0,35),
+                      p=1),
+    Ations.VerticalFlip(p=0.5),
+    Ations.Rotate(limit=7,
+                  border_mode = cv2.BORDER_REFLECT_101,
+                  p=0.7),
+    Ations.ShiftScaleRotate(scale_limit=0,
+                            rotate_limit=0,
+                            shift_limit=0.06,
+                            border_mode=cv2.BORDER_REFLECT_101,
+                            p=0.8),
+    Ations.Perspective(scale=(0.001, 0.02),
+                              p=0.5),
+    Ations.RandomBrightnessContrast(brightness_limit=0.1,
+                                    contrast_limit=0.1,
+                                    p=0.3),
+])
 
 Pipeline_Selector = {
             # Pipeline of the first tests made with casquillos
@@ -90,5 +128,9 @@ Pipeline_Selector = {
             # Pipeline used for casquillos on 4channel PS images
             'AUG_PIPE_PS':__photom_stereo_pipe,
             # Pipeline used for first tests on Albedo surfaces
-            'AUG_PIPE_SURF_V1':__all_surface_v1_pipe
+            'AUG_PIPE_SURF_V1':__all_surface_v1_pipe,
+            # Pipeline used for smooth AUG tests on Albedo surfaces
+            'AUG_PIPE_SURF_V2':__all_surface_v2_pipe,
+            # Pipeline used for SurfMCWob tests
+            'AUG_PIPE_SURF_V3':__all_surface_v3_pipe
            }
