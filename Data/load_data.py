@@ -10,17 +10,24 @@ import tensorflow as tf
 from random import shuffle
 
 
-def read_numpy_images_from_dir(dir_path, img_format, shuff=True, names=False,
-                               rescale=True):
+def read_numpy_images_from_dir(dir_path, img_format, img_shape,
+                                shuff=True, names=False, rescale=True):
     """ Reads all the images with the given *img_format from *dir_path.
     """
 
     # Get filenames
     dir_files = glob.glob(os.path.join(dir_path, f'*.{img_format}'))
+
     # Reorder randomly
     if shuff: shuffle(dir_files)
+
     # Read files as np.array
-    np_imgs = np.array([cv2.imread(f, cv2.IMREAD_UNCHANGED) for f in dir_files])
+    imgs = []
+    for f in dir_files:
+        img = cv2.imread(f, cv2.IMREAD_UNCHANGED) 
+        imgs.append(cv2.resize(img, img_shape[0:2], interpolation=cv2.INTER_LINEAR))
+    
+    np_imgs = np.array(imgs)
 
     # Add channel dim to grayscale images
     if len(np_imgs.shape) < 4:
@@ -38,7 +45,7 @@ def read_numpy_images_from_dir(dir_path, img_format, shuff=True, names=False,
         return np_imgs.astype(dtype=np.float32)
 
 
-def setup_tf_data_pipeline(data, shuff_buff_size, batch_size, shuffle=True):
+def setup_tf_data_pipeline(data, shuff_buff_size, batch_size, shuffle=True, drop=True):
     """ Setups the tf.data.pipeline for training/testing/whatever.
         data: Must be a np array or something like it. Could nested lists work?
         shuff_buff_size: Size of the buffer used for shuffling data before
@@ -54,7 +61,7 @@ def setup_tf_data_pipeline(data, shuff_buff_size, batch_size, shuffle=True):
     if shuffle:
         data_ds = data_ds.shuffle(buffer_size=shuff_buff_size)
 
-    return (data_ds.batch(batch_size, drop_remainder=True)
+    return (data_ds.batch(batch_size, drop_remainder=drop)
                    .prefetch(tf.data.experimental.AUTOTUNE))
 
 
@@ -62,8 +69,12 @@ def load_data(config):
     """ Loads data as defined in the config file """
 
 
-    np_train = read_numpy_images_from_dir(config['data.train'], config['data.format'])
-    np_val = read_numpy_images_from_dir(config['data.test'], config['data.format'])
+    np_train = read_numpy_images_from_dir(config['data.train'],
+                                           config['data.format'],
+                                            config['data.shape'])
+    np_val = read_numpy_images_from_dir(config['data.test'],
+                                         config['data.format'],
+                                          config['data.shape'])
 
     return {'train': setup_tf_data_pipeline(np_train,
                                             config['train.shuffle_buffer'],
@@ -82,12 +93,13 @@ def load_data_for_extraction(config):
     name_bank = {}
     for path in config['data.in']:
         np_imgs, nm_imgs = read_numpy_images_from_dir(path, config['data.format'],
-                                                      shuff=False, names=True,
-                                                      rescale=config['data.rescale'])
+                                                       config['data.shape'],
+                                                        shuff=False, names=True,
+                                                         rescale=config['data.rescale'])
         key = path.split('/')[-1]
         img_bank[key] = setup_tf_data_pipeline(np_imgs, 0,
                                                min(config['data.batch_size'], np_imgs.shape[0]),
-                                               shuffle=False)
+                                               shuffle=False, drop=False)
         name_bank[key] = nm_imgs
 
     return img_bank, name_bank
