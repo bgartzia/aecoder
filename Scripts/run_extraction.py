@@ -9,7 +9,9 @@ from extract import extract
 
 def preprocess_config(c):
     conf_dict = {}
-    int_params = ['model.segment_thresh', 'data.batch_size']
+    int_params = ['model.segment.thresh', 'data.batch_size',
+                  'model.segment.opening_r', 'model.segment.area_min',
+                  'model.segment.area_max']
     #float_params = ['train.lr']
     bool_params = ['data.rescale']
     int_list_params = ['data.shape', 'model.layers']
