@@ -10,7 +10,7 @@ def preprocess_config(c):
                   'train.patience', 'train.seed', 'train.shuffle_buffer',
                   'train.batch_size']
     bool_params = ['data.rescale']
-    float_params = ['train.lr']
+    float_params = ['train.lr', 'train.tolerance']
     int_list_params = ['data.shape', 'model.layers']
     for param in c:
         if param in int_params:

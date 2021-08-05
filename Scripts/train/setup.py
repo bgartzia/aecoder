@@ -3,6 +3,7 @@ Logic for model creation, training launching and actions needed to be
 accomplished during training (metrics monitor, model saving etc.)
 """
 
+import os
 import time
 import numpy as np
 import tensorflow as tf
@@ -108,18 +109,21 @@ def train(config, dbg=False):
              )
 
         cur_loss = val_loss.result().numpy()
-        if cur_loss < state['best_val_loss']:
+        if cur_loss < (state['best_val_loss'] - config['train.tolerance']):
             print("Saving new best model with loss: ", cur_loss)
             state['best_val_loss'] = cur_loss
+            state['best_val_epoch'] = epoch
             model.save(config['model.save_path'], config['model.base_name'])
+        else:
+            print(f"\n\t{epoch - state['best_val_epoch']} Epochs without"\
+                    "any considerable validation loss improval.")
 
         train_losses.append(train_loss.result().numpy())
         val_losses.append(cur_loss)
 
         # Early stopping
         patience = config['train.patience']
-        if len(val_losses) > patience \
-                and max(val_losses[-patience:]) == val_losses[-1]:
+        if epoch - state['best_val_epoch'] > patience:
             state['early_stopping_triggered'] = True
     train_engine.hooks['on_end_epoch'] = on_end_epoch
 
@@ -157,6 +161,9 @@ def train(config, dbg=False):
     print(f"Training took: {h} h {min} min {sec} sec")
 
     losses = np.array([train_losses, val_losses]).T
+    dirname = os.path.dirname(config['log.losses'])
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
     np.savetxt(config['log.losses'], losses, delimiter=',',
                header='Training loss,validation loss')
 

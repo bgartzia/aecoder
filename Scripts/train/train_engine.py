@@ -24,6 +24,7 @@ class TrainEngine(object):
             'total_batches': 1,
             'epochs': epochs,
             'best_val_loss': np.inf,
+            'best_val_epoch':0,
             'early_stopping_triggered': False
         }
 
