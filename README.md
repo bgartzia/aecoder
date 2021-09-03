@@ -1,4 +1,4 @@
-# Autoencoder para detección de casquillos defectuosos
+# Autoencoder para detección de imágenes defectuosas
 La entrada de datos son casquillos recortados en imagenes de __x__ pixeles.
 
 ## Preprocesado
